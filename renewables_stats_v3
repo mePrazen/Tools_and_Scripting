@@ -1,0 +1,119 @@
+#!/bin/bash
+
+# Check if exactly 4 arguments are provided, if not throw error
+if [ "$#" -ne 4 ]; then
+    echo "Error: Invalid number of arguments." > /dev/stderr
+    echo "Usage: renewables_stats <csv file path> <country_code | year> <'solar_wind' | 'coal'> <'min' | 'max'>" > /dev/stderr
+    exit 1
+fi
+
+csv_file="$1"
+query="$2"
+energy_type="$3"
+operation="$4"
+
+# Validate CSV file exists and is readable
+#check if file exists
+if [[ -z $1 ]]
+then
+    echo "ERROR: No input file!" > /dev/stderr
+    exit 2
+
+elif [ ! -f "$csv_file" ] || [ ! -r "$csv_file" ]; then
+    echo "Error: CSV file '$csv_file' does not exist or is not readable." > /dev/stderr
+    exit 1
+fi
+
+# Validate energy type
+if [ "$energy_type" != "solar_wind" ] && [ "$energy_type" != "coal" ]; then
+    echo "Error: Invalid energy type. Must be either 'solar_wind' or 'coal'." > dev/stderr
+    exit 1
+fi
+
+# Validate operation
+if [ "$operation" != "min" ] && [ "$operation" != "max" ]; then
+    echo "Error: Invalid operation. Must be either 'min' or 'max'." > dev/stderr
+    exit 1
+fi
+
+# Determine if query is country code or year
+# Determine if query is country code or year
+# Check if the query is a 3-letter country code
+if [[ "$query" =~ ^[A-Za-z]{3}$ ]]; then
+    mode="country"
+    country_code=$(echo "$query" | tr '[:lower:]' '[:upper:]')
+
+    # Determine column to sort by: Solar/Wind → col 5, Coal → col 4
+    if [[ "$energy_type" == "solar_wind" ]]; then
+        column=4
+    elif [[ "$energy_type" == "coal" ]]; then
+        column=5
+    else
+        echo "Invalid energy type: $energy_type"
+        exit 1
+    fi
+
+    # Determine sort order and wording
+    if [[ "$operation" == "max" ]]; then
+        sort_order="nr"
+        op_word="maximum"
+    elif [[ "$operation" == "min" ]]; then
+        sort_order="n"
+        op_word="minimum"
+    else
+        echo "Invalid operation: $operation"
+        exit 1
+    fi
+
+    # Get filtered and sorted result for the country
+    result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$country_code," | sort -t, -k$column,${column}$sort_order | head -1)
+
+    # Extract values
+    country_name=$(echo "$result" | cut -d, -f1)
+    code=$(echo "$result" | cut -d, -f2)
+    year=$(echo "$result" | cut -d, -f3)
+    value=$(echo "$result" | cut -d, -f$column)
+
+    # Display final message
+    echo "The $op_word amount of electrical energy produced from $energy_type for $country_name ($code) was $value TWh in $year."
+
+else
+# Extract year from the query if it's a 4-digit number
+year=$(echo "$query" | grep -Eo '^[0-9]{4}$')
+
+# Determine the appropriate column for sorting based on energy type
+# Column 4 → Solar/Wind, Column 5 → Coal
+if [[ "$energy_type" == "solar_wind" ]]; then
+    column=4
+elif [[ "$energy_type" == "coal" ]]; then
+    column=5
+else
+    echo "Invalid energy type: $energy_type"
+    exit 1
+fi
+
+# Choose sort order based on operation
+if [[ "$operation" == "max" ]]; then
+    sort_order="nr"  # numeric reverse (descending)
+    op_word="maximum"
+elif [[ "$operation" == "min" ]]; then
+    sort_order="n"   # numeric (ascending)
+    op_word="minimum"
+else
+    echo "Invalid operation: $operation"
+    exit 1
+fi
+
+# Filter and sort the data
+result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$year," | sort -t, -k$column,${column}$sort_order | head -1)
+
+# Extract individual fields from the result
+country_name=$(echo "$result" | cut -d, -f1) 
+country_code=$(echo "$result" | cut -d, -f2) 
+value=$(echo "$result" | cut -d, -f$column) 
+
+# Output the final result
+echo "The $op_word amount of electrical energy produced from $energy_type in $year was $value TWh by $country_name ($country_code)."
+
+
+fi

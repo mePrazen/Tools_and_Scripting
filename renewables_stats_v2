@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Check if exactly 4 arguments are provided, if not throw error
+if [ "$#" -ne 4 ]; then
+    echo "Error: Invalid number of arguments." > /dev/stderr
+    echo "Usage: renewables_stats <csv file path> <country_code | year> <'solar_wind' | 'coal'> <'min' | 'max'>" > /dev/stderr
+    exit 1
+fi
+
+csv_file="$1"
+query="$2"
+energy_type="$3"
+operation="$4"
+
+# Validate CSV file exists and is readable
+#check if file exists
+if [[ -z $1 ]]
+then
+    echo "ERROR: No input file!" > /dev/stderr
+    exit 2
+
+elif [ ! -f "$csv_file" ] || [ ! -r "$csv_file" ]; then
+    echo "Error: CSV file '$csv_file' does not exist or is not readable." > /dev/stderr
+    exit 1
+fi
+
+# Validate energy type
+if [ "$energy_type" != "solar_wind" ] && [ "$energy_type" != "coal" ]; then
+    echo "Error: Invalid energy type. Must be either 'solar_wind' or 'coal'." > dev/stderr
+    exit 1
+fi
+
+# Validate operation
+if [ "$operation" != "min" ] && [ "$operation" != "max" ]; then
+    echo "Error: Invalid operation. Must be either 'min' or 'max'." > dev/stderr
+    exit 1
+fi
+
+# Determine if query is country code or year
+# Determine if query is country code or year
+if [[ "$query" =~ ^[A-Za-z]{3}$ ]]; then
+    mode="country"
+
+    country_code=$(echo "$query" | tr '[:lower:]' '[:upper:]')
+
+    if [[ "$energy_type" == "solar_wind" && "$operation" == "max" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$country_code," | sort -t, -k5,5nr | head -1)
+        echo "$result"
+    elif [[ "$energy_type" == "solar_wind" && "$operation" == "min" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$country_code," | sort -t, -k5,5n | head -1)
+        echo "$result"
+    elif [[ "$energy_type" == "coal" && "$operation" == "max" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$country_code," | sort -t, -k4,4nr | head -1)
+        echo "$result"
+    elif [[ "$energy_type" == "coal" && "$operation" == "min" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$country_code," | sort -t, -k4,4n | head -1)
+        echo "$result"
+    fi
+
+else
+	 year=$(echo "$query" | grep -Eo '^[0-9]{4}$')
+
+	if [[ "$energy_type" == "solar_wind" && "$operation" == "max" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$year," | sort -t, -k4,4nr | head -1)
+        echo "The maximum amount of electrical energy produced from solar and wind in $year was $(echo "$result" | cut -d, -f4) TWh by $(echo "$result" | cut -d, -f1) ($(echo "$result" | cut -d, -f2))."
+    elif [[ "$energy_type" == "solar_wind" && "$operation" == "min" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$year," | sort -t, -k4,4n | head -1)
+	echo "The minimum amount of electrical energy produced from solar and wind in $year was $(echo "$result" | cut -d, -f4) TWh by $(echo "$result" | cut -d, -f1) ($(echo "$result" | cut -d, -f2))."
+    elif [[ "$energy_type" == "coal" && "$operation" == "max" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$year," | sort -t, -k5,5nr | head -1)
+	echo "The maximum amount of electrical energy produced from $enery_type in $year was $(echo "$result" | cut -d, -f5) TWh by $(echo "$result" | cut -d, -f1) ($(echo "$result" | cut -d, -f2))."
+    elif [[ "$energy_type" == "coal" && "$operation" == "min" ]]; then
+        result=$(cut -d, -f1-5 OWID_SolarWind_vs_Coal.csv | grep ",$year," | sort -t, -k5,5n | head -1)
+	echo "The minimum amount of electrical energy produced from $enery_type in $year was $(echo "$result" | cut -d, -f5) TWh by $(echo "$result" | cut -d, -f1) ($(echo "$result" | cut -d, -f2))."
+        echo "$result"
+    fi
+
+
+fi

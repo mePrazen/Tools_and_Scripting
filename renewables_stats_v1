@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Check for exactly 4 arguments
+if [ "$#" -ne 4 ]; then
+    echo "Error: Need exactly 4 arguments" >&2
+    echo "Usage: renewables_stats <csv_file> <country_code> solar_wind max" >&2
+    exit 1
+fi
+
+csv_file="$1"
+country_code="$2"
+energy_type="$3"
+operation="$4"
+
+# Basic validation
+if [ ! -f "$csv_file" ]; then
+    echo "Error: CSV file not found" >&2
+    exit 1
+fi
+
+if [ "$energy_type" != "solar_wind" ]; then
+    echo "Error: Only solar_wind is supported" >&2
+    exit 1
+fi
+
+if [ "$operation" != "max" ]; then
+    echo "Error: Only max operation is supported" >&2
+    exit 1
+fi
+
+# Find solar_wind column number
+col_num=$(head -1 "$csv_file" | tr ',' '\n' | grep -n "SolarWindTWh" | cut -d: -f1)
+
+echo $col_num
+if [ -z "$col_num" ]; then
+    echo "Error: solar_wind_percentage column not found" >&2
+    exit 1
+fi
+
+# Extract country data and find max value
+country_data=$(grep "^$country_code," "$csv_file" | cut -d, -f2,$col_num)
+
+echo $country_data
+if [ -z "$country_data" ]; then
+    echo "Error: No data found for country $country_code" >&2
+    exit 1
+fi
+
+# Sort by value (descending) and get first line
+max_line=$(echo "$country_data" | sort -t, -k2 -nr | head -1)
+ 
+echo $max_line
+year=$(echo "$max_line" | cut -d, -f1)
+value=$(echo "$max_line" | cut -d, -f2)
+
+echo "$country_code had the maximum solar_wind percentage in $year with $value%"
